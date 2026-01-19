@@ -1,23 +1,20 @@
 <?php
-    include("includes/config.php"); 
-    $sql = "DELETE FROM users WHERE id='" . $_GET["id"] . "'";
+include("includes/config.php");
+$sql = "DELETE FROM users WHERE id='" . $_GET["id"] . "'";
 
-    $run = mysqli_query($con,$sql);
+$run = mysqli_query($con, $sql);
 
-    if($run == true){
-			
-        echo "<script> 
+if ($run == true) {
+
+    echo "<script> 
             alert('User Deleted');
             window.open('dashboard.php','_self');
           </script>";
-    }
-	else
-	{
-        echo "<script> 
+} else {
+    echo "<script> 
             alert('Failed to delete');
             </script>";
-    }
+}
 
-    mysqli_close($con);
+mysqli_close($con);
 ?>
-<iframe src="deletemp.txt" height="400" width="1200"> Your browser does not support iframes. </iframe>
