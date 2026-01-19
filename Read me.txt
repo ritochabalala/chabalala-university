@@ -1,0 +1,24 @@
+Online Registration for SMU Students Using PHP and MySQL (Advanced Database System Development)
+
+Database onlinecourse (MySQL/MariaDB)
+The link to open for SMU Students Registration “http://localhost/smu_registrations”
+
+Login Details for admin 
+Email: admin@gmail.com 
+Username: admin
+Password: Test@123
+
+Login Details for Student: 
+Student No.: 201806940
+Password: Test@1234
+Student Pincode for enroll Course Student: 856292
+
+ogin Details for Student: 
+Student No.: 201706940
+Password: Test@1234
+Student Pincode for enroll Course Student: 821864
+
+Login Details for User: 
+Email: ritochabalala@gmail.com
+Password: password
+

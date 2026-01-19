@@ -1,0 +1,12 @@
+<?php
+define('DB_SERVER','localhost');
+define('DB_USER','id18652794_root');
+define('DB_PASS' ,'~45uDe%c>RWwkyL/');
+define('DB_NAME','id18652794_onlinecourse');
+$con = mysqli_connect(DB_SERVER,DB_USER,DB_PASS,DB_NAME);
+// Check connection
+if (mysqli_connect_errno())
+{
+ echo "Failed to connect to MySQL: " . mysqli_connect_error();
+}
+?>
