@@ -5,13 +5,14 @@
                 <div class="navbar-collapse collapse ">
                     <ul id="menu-top" class="nav navbar-nav navbar-right"><br>
                         <li><a href="pincode-verification.php">Enroll for Course </a></li>
-                        <li><a href="enroll-history.php">Enroll History  </a></li>
+                        <li><a href="enroll-history.php">Enroll History </a></li>
                         <li><a href="my-profile.php">My Profile</a></li>
                         <li><a href="change-password.php">Change Password</a></li>
-                        <li><a href="logout.php">Logout</a></li>
+                        <!-- <li><a href="logout.php">Logout</a></li> -->
+                        <li><a href="logout.php" class="nav-link"><i class="fa fa-power-off"></i> Logout</a></li>
                     </ul>
                 </div>
             </div>
-         </div>
+        </div>
     </div>
 </section>

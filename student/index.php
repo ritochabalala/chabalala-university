@@ -1,8 +1,8 @@
 <?php
 // Initialize secure session
-require_once("../includes/session_security.php");
+require_once("includes/session_security.php");
 require_once("includes/config.php");
-require_once("../includes/security.php");
+require_once("includes/security.php");
 
 error_reporting(E_ALL);
 ini_set('display_errors', 0); // Hide errors in production
@@ -10,7 +10,7 @@ ini_set('log_errors', 1);
 
 if (isset($_POST['submit'])) {
 	// Check rate limit
-	if (!checkRateLimit('user_login', 5, 900)) {
+	if (!checkRateLimit('student_login', 5, 900)) {
 		echo "<script>
 			alert('" . getRateLimitMessage(900) . "');
 			window.location.href='index.php';
@@ -19,22 +19,13 @@ if (isset($_POST['submit'])) {
 	}
 
 	// Sanitize inputs
-	$email = sanitizeInput($_POST['email']);
+	$studentregno = sanitizeInput($_POST['studentregno']);
 	$password = $_POST['password'];
 
 	// Validate input
-	if (empty($email) || empty($password)) {
+	if (empty($studentregno) || empty($password)) {
 		echo "<script>
-			alert('Please enter both Email and Password');
-			window.location.href='index.php';
-		</script>";
-		exit();
-	}
-
-	// Validate email format
-	if (!validateEmail($email)) {
-		echo "<script>
-			alert('Please enter a valid email address');
+			alert('Please enter both Student Number and Password');
 			window.location.href='index.php';
 		</script>";
 		exit();
@@ -42,28 +33,28 @@ if (isset($_POST['submit'])) {
 
 	try {
 		// Use prepared statement to prevent SQL injection
-		$stmt = $pdo->prepare("SELECT * FROM users WHERE email = :email LIMIT 1");
-		$stmt->execute(['email' => $email]);
-		$user = $stmt->fetch();
+		$stmt = $pdo->prepare("SELECT * FROM students WHERE studentregno = :studentregno LIMIT 1");
+		$stmt->execute(['studentregno' => $studentregno]);
+		$student = $stmt->fetch();
 
 		// Verify password using password_verify (supports both bcrypt and MD5 temporarily)
-		if ($user) {
+		if ($student) {
 			$passwordMatch = false;
 
 			// Check if it's a bcrypt hash (bcrypt hashes start with $2y$, $2a$, $2b$)
-			if (preg_match('/^\$2[ayb]\$.{56}$/', $user['password'])) {
-				$passwordMatch = password_verify($password, $user['password']);
+			if (preg_match('/^\$2[ayb]\$.{56}$/', $student['password'])) {
+				$passwordMatch = password_verify($password, $student['password']);
 			} else {
 				// Fallback to MD5 for existing users (temporary)
-				$passwordMatch = ($user['password'] === md5($password));
+				$passwordMatch = ($student['password'] === md5($password));
 
 				// If MD5 matched, upgrade to bcrypt
 				if ($passwordMatch) {
 					$newHash = password_hash($password, PASSWORD_BCRYPT);
-					$updateStmt = $pdo->prepare("UPDATE users SET password = :password WHERE email = :email");
+					$updateStmt = $pdo->prepare("UPDATE students SET password = :password WHERE studentregno = :studentregno");
 					$updateStmt->execute([
 						'password' => $newHash,
-						'email' => $email
+						'studentregno' => $studentregno
 					]);
 				}
 			}
@@ -72,37 +63,40 @@ if (isset($_POST['submit'])) {
 				// Regenerate session ID for security
 				regenerateSession();
 
-				$_SESSION['email'] = $user['email'];
-				$_SESSION['user_id'] = $user['id'];
+				$_SESSION['login'] = $student['studentregno'];
+				$_SESSION['studentregno'] = $student['studentregno'];
 
-				logSecurityEvent('user_login_success', "User: $email", 'info');
+				// Log successful login
+				$uip = $_SERVER['REMOTE_ADDR'];
+				$status = 1;
+				$logStmt = $pdo->prepare("INSERT INTO userlog (studentregno, userip, status, logintime) VALUES (:studentregno, :userip, :status, NOW())");
+				$logStmt->execute([
+					'studentregno' => $_SESSION['login'],
+					'userip' => $uip,
+					'status' => $status
+				]);
+
+				logSecurityEvent('student_login_success', "Student: $studentregno", 'info');
 
 				echo "<script>
-					window.location.href='dashboard.php';
+				window.location.href='my-profile.php';
 				</script>";
 				exit();
 			}
 		}
 
 		// Login failed
-		logSecurityEvent('user_login_failed', "User: $email", 'warning');
+		logSecurityEvent('student_login_failed', "Student: $studentregno", 'warning');
 
 		echo "<script>
-			alert('The login details are incorrect. Please try again!');
-			window.location.href='index.php';
-		</script>";
-		exit();
-		logSecurityEvent('user_login_failed', "User: $email", 'warning');
-
-		echo "<script>
-			alert('The login details are incorrect. Please try again!');
+			alert('The Student Number/Password is incorrect. Please try again');
 			window.location.href='index.php';
 		</script>";
 		exit();
 
 	} catch (PDOException $e) {
-		error_log("User login error: " . $e->getMessage());
-		logSecurityEvent('user_login_error', $e->getMessage(), 'error');
+		error_log("Login error: " . $e->getMessage());
+		logSecurityEvent('student_login_error', $e->getMessage(), 'error');
 
 		echo "<script>
 			alert('An error occurred. Please try again later.');
@@ -117,8 +111,9 @@ if (isset($_POST['submit'])) {
 <html xmlns="http://www.w3.org/1999/xhtml">
 
 <head>
-	<title>User Login</title>
+	<title>Student Login</title>
 
+	<!-- Custom CSS -->
 	<?php include('includes/style.php'); ?>
 </head>
 
@@ -134,27 +129,13 @@ if (isset($_POST['submit'])) {
 							<li><a href="../student/">Home </a></li>
 							<li><a href="../apply/">User Login</a></li>
 							<li><a href="../admin/">Admin Login </a></li>
-							<li><a href="../student/">Student Login </a></li>
+							<li><a href="../student/">Student Portal</a></li>
 						</ul>
 					</div>
 				</div>
 			</div>
 		</div>
 	</section>
-
-	<!--This Is Header-->
-	<header id="main-header" class="bg-primary py-2 text-white">
-		<div class="container">
-			<div class="row">
-				<div class="col-md-6">
-					<h1><i class="fa fa-user"></i> User Login</h1>
-				</div>
-			</div>
-		</div>
-	</header>
-	<!--This is section-->
-	<!-- Designed and developed by Rito Chabalala -->
-
 	<br>
 	<!--This is section-->
 	<section id="sections" class="py-4 mb-4 bg-faded">
@@ -217,71 +198,46 @@ if (isset($_POST['submit'])) {
 		</div>
 	</div>
 
-	<?php
-
-	if (isset($_POST['adduser'])) {
-		$name = $_POST['name'];
-		$email = $_POST['email'];
-		$password = $_POST['password'];
-
-		$password = md5($_POST['password']);
-		$cpassword = md5($_POST['cpassword']);
-
-		if ($password == $cpassword) {
-			$sql = "SELECT * FROM users WHERE email='$email'";
-			$result = mysqli_query($con, $sql);
-			if (!$result->num_rows > 0) {
-				$sql = "INSERT INTO users(name,email,password)VALUES('$name','$email','$password')";
-				$result = mysqli_query($con, $sql);
-				if ($result == true) {
-
-					echo "<script> 
-					        alert('Congratulation! Account Created');
-					        window.open('index.php','_self');
-				        </script>";
-
-					$name = "";
-					$email = "";
-					$_POST['password'] = "";
-					$_POST['cpassword'] = "";
-
-				} else {
-					echo "<script>alert('Woops! Something Went Wrong.')</script>";
-				}
-			} else {
-				echo "<script>alert('Woops! Email Already Exists.')</script>";
-			}
-
-		} else {
-			echo "<script>alert('Passwords Not Matched.')</script>";
-		}
-	}
-	?>
-
-	<!---- Section2 for showing Post Model ---->
 	<div class="content-wrapper">
 		<div class="container">
 			<div class="row">
 				<div class="col-md-12">
-					<h4 class="page-head-line">Please enter your details to check your status/apply </h4>
+					<h4 class="page-head-line">Please enter your details to login in your student portal</h4>
 				</div>
 			</div>
 			<span
 				style="color:red;"><?php echo htmlentities($_SESSION['errmsg']); ?><?php echo htmlentities($_SESSION['errmsg'] = ""); ?></span>
+
 			<div class="row">
 				<form name="admin" method="post">
 					<div class="col-md-6">
-						<label>Enter Email: </label>
-						<input type="email" name="email" placeholder="Email" class="form-control" required />
-						<label>Enter Password: </label>
-						<input type="password" name="password" placeholder="Password" class="form-control" required />
+						<label>Enter Student Number : </label>
+						<input type="text" name="studentregno" placeholder="Student Number" class="form-control" />
+						<label>Enter Password : </label>
+						<input type="password" name="password" placeholder="Password" class="form-control" />
 						<hr />
-						<button type="submit" name="submit" class="btn btn-primary"><span
-								class="glyphicon glyphicon-user"></span> &nbsp;User Login </button>&nbsp;
+						<button type="submit" name="submit" class="btn btn-info"><span
+								class="glyphicon glyphicon-user"></span> &nbsp; Student Login </button>&nbsp;
 					</div>
 				</form>
 				<div class="col-md-6">
-					<img src="../assets/img/user.png" class="img-responsive">
+					<div class="alert alert-info">
+						<strong> Latest News / Updates</strong>
+						<marquee direction='up' scrollamount="2" onmouseover="this.stop();" onmouseout="this.start();">
+							<ul>
+								<?php
+								$sql = mysqli_query($con, "select * from news");
+								$cnt = 1;
+								while ($row = mysqli_fetch_array($sql)) {
+									?>
+									<li>
+										<a
+											href="news-details.php?nid=<?php echo htmlentities($row['id']); ?>"><?php echo htmlentities($row['newstitle']); ?>-<?php echo htmlentities($row['postingDate']); ?></a>
+									</li>
+								<?php } ?>
+							</ul>
+						</marquee>
+					</div>
 				</div>
 			</div>
 		</div>
@@ -297,4 +253,44 @@ if (isset($_POST['submit'])) {
 </body>
 
 </html>
-<!-- Designed and developed by Rito Chabalala -->
+<?php
+
+if (isset($_POST['adduser'])) {
+	$name = $_POST['name'];
+	$email = $_POST['email'];
+	$password = $_POST['password'];
+
+	$password = md5($_POST['password']);
+	$cpassword = md5($_POST['cpassword']);
+
+	if ($password == $cpassword) {
+		$sql = "SELECT * FROM users WHERE email='$email'";
+		$result = mysqli_query($con, $sql);
+		if (!$result->num_rows > 0) {
+			$sql = "INSERT INTO users(name,email,password)VALUES('$name','$email','$password')";
+			$result = mysqli_query($con, $sql);
+			if ($result == true) {
+
+				echo "<script> 
+					        alert('Congratulation! Account Created');
+					        window.open('apply/','_self');
+				        </script>";
+
+				$name = "";
+				$email = "";
+				$_POST['password'] = "";
+				$_POST['cpassword'] = "";
+
+			} else {
+				echo "<script>alert('Woops! Something Went Wrong.')</script>";
+			}
+		} else {
+			echo "<script>alert('Woops! Email Already Exists.')</script>";
+		}
+
+	} else {
+		echo "<script>alert('Passwords Not Matched.')</script>";
+	}
+}
+
+?>

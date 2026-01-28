@@ -18,7 +18,7 @@ if (strlen($_SESSION['login']) == 0) {
 
         <title>Student | Module Enrollment Print</title>
 
-        <link rel="icon" type="image/jpg" href="assets/img/smu_logo.jpg" />
+        <link rel="icon" type="image/jpg" href="../assets/img/smu_logo.jpg" />
 
         <style>
             .invoice-box {

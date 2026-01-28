@@ -104,10 +104,10 @@ if (isset($_POST['submit'])) {
                 <div class="col-md-12">
                     <div class="navbar-collapse collapse ">
                         <ul id="menu-top" class="nav navbar-nav navbar-right">
-                            <li><a href="../">Home </a></li>
+                            <li><a href="../student/">Home </a></li>
                             <li><a href="../apply/">User Login</a></li>
-                            <li><a href="../admin">Admin Login </a></li>
-                            <li><a href="../">Student Portal </a></li>
+                            <li><a href="../admin/">Admin Login </a></li>
+                            <li><a href="../student/">Student Portal </a></li>
                         </ul>
                     </div>
                 </div>

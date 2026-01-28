@@ -1,5 +1,5 @@
 <?php
-session_start();
+require_once('includes/session_security.php');
 include("includes/config.php");
 $_SESSION['login'] == "";
 date_default_timezone_set('Africa/Johannesburg');// change according timezone

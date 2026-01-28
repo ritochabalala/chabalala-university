@@ -1,6 +1,6 @@
 <?php
 require_once('includes/session_security.php');
-include('includes/config.php');
+include('../includes/config.php');
 if (strlen($_SESSION['login']) == 0) {
     header('location:index.php');
 }
@@ -51,7 +51,7 @@ if (isset($_POST['search'])) {
                                                     <p style='font-size: 14px;'>Student </p>
                                                 </div>
                                                 <div class='box-3'>
-                                                    <img src='assets/img/smu_logo.jpg' alt=''>
+                                                    <img src='../assets/img/smu_logo.jpg' alt=''>
                                                 </div>
                                             </div>
                                   
@@ -92,7 +92,7 @@ if (isset($_POST['search'])) {
                                                         <p style='font-size:12px;'>VC's Signature</p>
 														
 														<div class='box-4'>
-                                                            <img src='assets/img/signature.png' alt=''>
+                                                            <img src='../assets/img/signature.png' alt=''>
                                                         </div>
                                                     </div>
                                                 </div>
