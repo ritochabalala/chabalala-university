@@ -1,27 +1,58 @@
 <?php
 require_once('../includes/session_security.php');
+require_once('../includes/error_handler.php');
 include('includes/config.php');
+include('../includes/security.php');
+
 if (strlen($_SESSION['alogin']) == 0) {
     header('location:index.php');
+    exit();
 } else {
-    // COde for insertion
+    // Code for insertion
     if (isset($_POST['submit'])) {
-        $semester = $_POST['semester'];
-        $ret = mysqli_query($con, "insert into semester(semester) values('$semester')");
-        if ($ret) {
-            echo '<script>alert("Semester Created Successfully !!")</script>';
-            echo '<script>window.location.href=semester.php</script>';
+        // Validate CSRF token
+        if (!validateCSRFToken($_POST['csrf_token'] ?? '')) {
+            logMessage("CSRF token validation failed in semester creation", 'WARNING');
+            echo '<script>alert("Invalid form submission. Please try again.")</script>';
+            exit();
+        }
+
+        $semester = sanitizeInput($_POST['semester']);
+
+        if (empty($semester)) {
+            echo '<script>alert("Semester name is required")</script>';
         } else {
-            echo '<script>alert("Something went wrong. Please try again.")</script>';
-            echo '<script>window.location.href=semester.php</script>';
+            try {
+                $stmt = $dbh->prepare("INSERT INTO semester(semester) VALUES(?)");
+                $ret = $stmt->execute([$semester]);
+                if ($ret) {
+                    logMessage("Semester created: $semester", 'INFO');
+                    echo '<script>alert("Semester Created Successfully!")</script>';
+                    echo '<script>window.location.href="semester.php"</script>';
+                } else {
+                    logMessage("Failed to create semester: $semester", 'ERROR');
+                    echo '<script>alert("Something went wrong. Please try again.")</script>';
+                    echo '<script>window.location.href="semester.php"</script>';
+                }
+            } catch (PDOException $e) {
+                logMessage("Database error creating semester: " . $e->getMessage(), 'ERROR');
+                echo '<script>alert("An error occurred. Please try again.")</script>';
+            }
         }
     }
     //Code For Deletion
     if (isset($_GET['del'])) {
-        $sid = $_GET['id'];
-        mysqli_query($con, "delete from semester where id ='$sid'");
-        echo '<script>alert("Semester Deleted Successfully !!")</script>';
-        echo '<script>window.location.href=semester.php</script>';
+        $sid = (int) $_GET['id']; // Cast to integer for safety
+        try {
+            $stmt = $dbh->prepare("DELETE FROM semester WHERE id = ?");
+            $stmt->execute([$sid]);
+            logMessage("Semester deleted: ID $sid", 'INFO');
+            echo '<script>alert("Semester Deleted Successfully!")</script>';
+            echo '<script>window.location.href="semester.php"</script>';
+        } catch (PDOException $e) {
+            logMessage("Database error deleting semester: " . $e->getMessage(), 'ERROR');
+            echo '<script>alert("An error occurred. Please try again.")</script>';
+        }
     }
     ?>
 
@@ -57,12 +88,14 @@ if (strlen($_SESSION['alogin']) == 0) {
                                 Semester
                             </div>
                             <font color="green" align="center">
-                                <?php echo htmlentities($_SESSION['msg']); ?>    <?php echo htmlentities($_SESSION['msg'] = ""); ?>
+                                <?php echo htmlentities($_SESSION['msg']); ?>
+                                <?php echo htmlentities($_SESSION['msg'] = ""); ?>
                             </font>
 
 
                             <div class="panel-body">
                                 <form name="semester" method="post">
+                                    <?php echo csrfTokenField(); ?>
                                     <div class="form-group">
                                         <label for="semester">Add Semester </label>
                                         <input type="text" class="form-control" id="semester" name="semester"
@@ -76,7 +109,8 @@ if (strlen($_SESSION['alogin']) == 0) {
 
                 </div>
                 <font color="red" align="center">
-                    <?php echo htmlentities($_SESSION['delmsg']); ?>    <?php echo htmlentities($_SESSION['delmsg'] = ""); ?></font>
+                    <?php echo htmlentities($_SESSION['delmsg']); ?>     <?php echo htmlentities($_SESSION['delmsg'] = ""); ?>
+                </font>
                 <div class="col-md-12">
                     <!--    Bordered Table  -->
                     <div class="panel panel-default">

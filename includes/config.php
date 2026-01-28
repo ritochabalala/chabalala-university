@@ -32,7 +32,15 @@ if (!function_exists('loadEnv')) {
 
 // Load .env file only once
 if (!defined('DB_SERVER')) {
-    loadEnv(__DIR__ . '/../.env');
+    // Detect the correct path to .env file
+    $envPath = __DIR__ . '/../.env';
+
+    // If called from a subdirectory (e.g., student/includes), adjust path
+    if (!file_exists($envPath)) {
+        $envPath = __DIR__ . '/../../.env';
+    }
+
+    loadEnv($envPath);
 
     // Database configuration
     define('DB_SERVER', getenv('DB_SERVER'));
@@ -42,9 +50,9 @@ if (!defined('DB_SERVER')) {
 }
 
 // Create PDO connection for prepared statements (only once)
-if (!isset($GLOBALS['pdo'])) {
+if (!isset($GLOBALS['dbh'])) {
     try {
-        $GLOBALS['pdo'] = new PDO(
+        $GLOBALS['dbh'] = new PDO(
             "mysql:host=" . DB_SERVER . ";dbname=" . DB_NAME . ";charset=utf8mb4",
             DB_USER,
             DB_PASS,
@@ -54,13 +62,15 @@ if (!isset($GLOBALS['pdo'])) {
                 PDO::ATTR_EMULATE_PREPARES => false,
             ]
         );
-        $pdo = $GLOBALS['pdo']; // Make available in local scope
+        $dbh = $GLOBALS['dbh']; // Make available in local scope
+        $pdo = $dbh; // Alias for backward compatibility
     } catch (PDOException $e) {
         error_log("Database connection failed: " . $e->getMessage());
         die("Database connection failed. Please contact administrator.");
     }
 } else {
-    $pdo = $GLOBALS['pdo'];
+    $dbh = $GLOBALS['dbh'];
+    $pdo = $dbh; // Alias for backward compatibility
 }
 
 // Legacy mysqli connection for backward compatibility (will be phased out)

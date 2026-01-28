@@ -1,30 +1,56 @@
 <?php
 require_once('includes/session_security.php');
+require_once('includes/error_handler.php');
 include('includes/config.php');
-error_reporting(0);
+include('includes/security.php');
+
 if (strlen($_SESSION['login']) == 0 or strlen($_SESSION['pcode']) == 0) {
     header('location:index.php');
+    exit();
 } else {
     if (isset($_POST['submit'])) {
-        $studentregno = $_POST['studentregno'];
-        $pincode = $_POST['Pincode'];
-        $session = $_POST['session'];
-        $dept = $_POST['department'];
-        $level = $_POST['level'];
-        $course = $_POST['course'];
-        $sem = $_POST['sem'];
-        $ret = mysqli_query($con, "insert into courseenrolls(studentregno,pincode,session,department,level,course,semester) values('$studentregno','$pincode','$session','$dept','$level','$course','$sem')");
+        // Validate CSRF token
+        if (!validateCSRFToken($_POST['csrf_token'] ?? '')) {
+            logMessage("CSRF token validation failed in enrollment", 'WARNING');
+            echo "<script>alert('Invalid form submission. Please try again.');</script>";
+            exit();
+        }
 
-        if ($ret) {
-            echo "<script> 
-			            alert('Enroll Successfully !!');
-			            window.open('enroll-history.php','_self');
-			        </script>";
+        // Validate and sanitize inputs
+        $studentregno = sanitizeInput($_POST['studentregno']);
+        $pincode = sanitizeInput($_POST['Pincode']);
+        $session = sanitizeInput($_POST['session']);
+        $dept = sanitizeInput($_POST['department']);
+        $level = sanitizeInput($_POST['level']);
+        $course = sanitizeInput($_POST['course']);
+        $sem = sanitizeInput($_POST['sem']);
+
+        // Validate required fields
+        if (empty($studentregno) || empty($pincode) || empty($session) || empty($dept) || empty($level) || empty($course) || empty($sem)) {
+            echo "<script>alert('All fields are required!');</script>";
         } else {
-            echo "<script> 
-			            alert('Error : Not Enroll');
-			            window.open('enroll.php','_self');
+            // Use prepared statement
+            try {
+                $stmt = $dbh->prepare("INSERT INTO courseenrolls(studentregno,pincode,session,department,level,course,semester) VALUES(?,?,?,?,?,?,?)");
+                $ret = $stmt->execute([$studentregno, $pincode, $session, $dept, $level, $course, $sem]);
+
+                if ($ret) {
+                    logMessage("Course enrollment successful for student: $studentregno", 'INFO');
+                    echo "<script> 
+				            alert('Enroll Successfully !!');
+				            window.open('enroll-history.php','_self');
 			        </script>";
+                } else {
+                    logMessage("Course enrollment failed for student: $studentregno", 'ERROR');
+                    echo "<script> 
+				            alert('Error : Not Enroll');
+				            window.open('enroll.php','_self');
+			        </script>";
+                }
+            } catch (PDOException $e) {
+                logMessage("Database error in enrollment: " . $e->getMessage(), 'ERROR');
+                echo "<script>alert('An error occurred. Please try again.');</script>";
+            }
         }
     }
     ?>
@@ -74,6 +100,7 @@ if (strlen($_SESSION['login']) == 0 or strlen($_SESSION['pcode']) == 0) {
 
                                 <div class="panel-body">
                                     <form name="dept" method="post" enctype="multipart/form-data">
+                                        <?php echo csrfTokenField(); ?>
                                         <div class="form-group">
                                             <label for="studentname">Student Name </label>
                                             <input type="text" class="form-control" id="studentname" name="studentname"

@@ -6,6 +6,7 @@ studentphoto/*
 vendor/
 composer.lock
 *.log
+logs/
 .vscode/
 .idea/
 *.swp

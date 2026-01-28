@@ -1,21 +1,47 @@
 <?php
 require_once('includes/session_security.php');
+require_once('includes/error_handler.php');
 include('includes/config.php');
-error_reporting(0);
+include('includes/security.php');
+
 if (strlen($_SESSION['login']) == 0) {
     header('location:index.php');
+    exit();
 } else {
     date_default_timezone_set('Africa/Johannesburg');// change according timezone
     $currentTime = date('d-m-Y h:i:s A', time());
     if (isset($_POST['submit'])) {
-        $sql = mysqli_query($con, "SELECT * FROM  students where pincode='" . trim($_POST['pincode']) . "' && StudentRegno='" . $_SESSION['login'] . "'");
-        $num = mysqli_fetch_array($sql);
-        if ($num > 0) {
-            $_SESSION['pcode'] = $_POST['pincode'];
-            header("location:enroll.php");
+        // Validate CSRF token
+        if (!validateCSRFToken($_POST['csrf_token'] ?? '')) {
+            logMessage("CSRF token validation failed in pincode verification", 'WARNING');
+            echo '<script>alert("Invalid form submission. Please try again.")</script>';
+            exit();
+        }
+
+        // Validate and sanitize pincode
+        $pincode = sanitizeInput(trim($_POST['pincode']));
+
+        if (empty($pincode)) {
+            echo '<script>alert("Pincode is required!")</script>';
         } else {
-            echo '<script>alert("Error :Wrong Pincode. Please Enter a Valid Pincode !!")</script>';
-            echo '<script>window.location.href=my-pincode-verification.php</script>';
+            try {
+                // Use prepared statement
+                $stmt = $dbh->prepare("SELECT * FROM students WHERE pincode = ? AND StudentRegno = ?");
+                $stmt->execute([$pincode, $_SESSION['login']]);
+                $result = $stmt->fetch(PDO::FETCH_ASSOC);
+
+                if ($result) {
+                    $_SESSION['pcode'] = $pincode;
+                    header("location:enroll.php");
+                    exit();
+                } else {
+                    echo '<script>alert("Error: Wrong Pincode. Please Enter a Valid Pincode!")</script>';
+                    echo '<script>window.location.href="pincode-verification.php"</script>';
+                }
+            } catch (PDOException $e) {
+                logMessage("Database error in pincode verification: " . $e->getMessage(), 'ERROR');
+                echo '<script>alert("An error occurred. Please try again.")</script>';
+            }
         }
     }
     ?>
@@ -59,6 +85,7 @@ if (strlen($_SESSION['login']) == 0) {
 
                             <div class="panel-body">
                                 <form name="pincodeverify" method="post">
+                                    <?php echo csrfTokenField(); ?>
                                     <div class="form-group">
                                         <label for="pincode">Enter Pincode</label>
                                         <input type="password" class="form-control" id="pincode" name="pincode"

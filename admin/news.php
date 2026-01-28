@@ -1,29 +1,61 @@
 <?php
 require_once('../includes/session_security.php');
+require_once('../includes/error_handler.php');
 include('includes/config.php');
+include('../includes/security.php');
+
 if (strlen($_SESSION['alogin']) == 0) {
     header('location:index.php');
+    exit();
 } else {
     // Code for News Insertion
     if (isset($_POST['submit'])) {
-        $ntitle = $_POST['newstitle'];
-        $ndescription = $_POST['description'];
-        $ret = mysqli_query($con, "insert into news(newstitle,newsDescription) values('$ntitle','$ndescription')");
-        if ($ret) {
-            echo '<script>alert("News added successfully")</script>';
-            echo "<script>window.location.href='news.php'</script>";
+        // Validate CSRF token
+        if (!validateCSRFToken($_POST['csrf_token'] ?? '')) {
+            logMessage("CSRF token validation failed in news submission", 'WARNING');
+            echo '<script>alert("Invalid form submission. Please try again.")</script>';
+            exit();
+        }
+
+        // Validate and sanitize inputs
+        $ntitle = sanitizeInput($_POST['newstitle']);
+        $ndescription = sanitizeInput($_POST['description']);
+
+        if (empty($ntitle) || empty($ndescription)) {
+            echo '<script>alert("Title and description are required")</script>';
         } else {
-            echo '<script>alert("Something went wrong. Please try again.")</script>';
-            echo "<script>window.location.href='news.php'</script>";
+            try {
+                $stmt = $dbh->prepare("INSERT INTO news(newstitle,newsDescription) VALUES(?,?)");
+                $ret = $stmt->execute([$ntitle, $ndescription]);
+                if ($ret) {
+                    logMessage("News added: $ntitle", 'INFO');
+                    echo '<script>alert("News added successfully")</script>';
+                    echo "<script>window.location.href='news.php'</script>";
+                } else {
+                    logMessage("Failed to add news: $ntitle", 'ERROR');
+                    echo '<script>alert("Something went wrong. Please try again.")</script>';
+                    echo "<script>window.location.href='news.php'</script>";
+                }
+            } catch (PDOException $e) {
+                logMessage("Database error adding news: " . $e->getMessage(), 'ERROR');
+                echo '<script>alert("An error occurred. Please try again.")</script>';
+            }
         }
     }
 
     //Code Deletion
     if (isset($_GET['del'])) {
-        $nid = $_GET['id'];
-        mysqli_query($con, "delete from news where id ='$nid'");
-        echo '<script>alert("News deleted succesfully.")</script>';
-        echo '<script>window.location.href=news.php</script>';
+        $nid = (int) $_GET['id']; // Cast to integer for safety
+        try {
+            $stmt = $dbh->prepare("DELETE FROM news WHERE id = ?");
+            $stmt->execute([$nid]);
+            logMessage("News deleted: ID $nid", 'INFO');
+            echo '<script>alert("News deleted successfully.")</script>';
+            echo '<script>window.location.href="news.php"</script>';
+        } catch (PDOException $e) {
+            logMessage("Database error deleting news: " . $e->getMessage(), 'ERROR');
+            echo '<script>alert("An error occurred. Please try again.")</script>';
+        }
     }
     ?>
 
@@ -61,6 +93,7 @@ if (strlen($_SESSION['alogin']) == 0) {
 
                             <div class="panel-body">
                                 <form name="dept" method="post">
+                                    <?php echo csrfTokenField(); ?>
                                     <div class="form-group">
                                         <label for="department">News Title </label>
                                         <input type="text" class="form-control" id="newstitle" name="newstitle"
