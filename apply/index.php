@@ -1,36 +1,116 @@
 <?php
-session_start();
-error_reporting(0);
-include("includes/config.php");
+// Initialize secure session
+require_once("../includes/session_security.php");
+require_once("includes/config.php");
+require_once("../includes/security.php");
+
+error_reporting(E_ALL);
+ini_set('display_errors', 0); // Hide errors in production
+ini_set('log_errors', 1);
 
 if (isset($_POST['submit'])) {
-	$email = $_POST['email'];
+	// Check rate limit
+	if (!checkRateLimit('user_login', 5, 900)) {
+		echo "<script>
+			alert('" . getRateLimitMessage(900) . "');
+			window.location.href='index.php';
+		</script>";
+		exit();
+	}
+
+	// Sanitize inputs
+	$email = sanitizeInput($_POST['email']);
 	$password = $_POST['password'];
 
-	$password = md5($_POST['password']);
+	// Validate input
+	if (empty($email) || empty($password)) {
+		echo "<script>
+			alert('Please enter both Email and Password');
+			window.location.href='index.php';
+		</script>";
+		exit();
+	}
 
-	$sql = "SELECT * FROM users WHERE email = '$email' AND password = '$password'";
+	// Validate email format
+	if (!validateEmail($email)) {
+		echo "<script>
+			alert('Please enter a valid email address');
+			window.location.href='index.php';
+		</script>";
+		exit();
+	}
 
-	$run = mysqli_query($con, $sql);
-	$check = mysqli_num_rows($run);
+	try {
+		// Use prepared statement to prevent SQL injection
+		$stmt = $pdo->prepare("SELECT * FROM users WHERE email = :email LIMIT 1");
+		$stmt->execute(['email' => $email]);
+		$user = $stmt->fetch();
 
-	if ($check == 1) {
-		session_start();
-		$_SESSION['email'] = $email;
+		// Verify password using password_verify (supports both bcrypt and MD5 temporarily)
+		if ($user) {
+			$passwordMatch = false;
 
-		echo "<script> 
-					window.open('dashboard.php','_self');
-				  </script>";
-	} else {
-		echo "<script> 
-			alert('The login details are incorrect.  Please try again!');
-			window.open('index.php','_self');
-			</script>";
+			// Check if it's a bcrypt hash (bcrypt hashes start with $2y$, $2a$, $2b$)
+			if (preg_match('/^\$2[ayb]\$.{56}$/', $user['password'])) {
+				$passwordMatch = password_verify($password, $user['password']);
+			} else {
+				// Fallback to MD5 for existing users (temporary)
+				$passwordMatch = ($user['password'] === md5($password));
+
+				// If MD5 matched, upgrade to bcrypt
+				if ($passwordMatch) {
+					$newHash = password_hash($password, PASSWORD_BCRYPT);
+					$updateStmt = $pdo->prepare("UPDATE users SET password = :password WHERE email = :email");
+					$updateStmt->execute([
+						'password' => $newHash,
+						'email' => $email
+					]);
+				}
+			}
+
+			if ($passwordMatch) {
+				// Regenerate session ID for security
+				regenerateSession();
+
+				$_SESSION['email'] = $user['email'];
+				$_SESSION['user_id'] = $user['id'];
+
+				logSecurityEvent('user_login_success', "User: $email", 'info');
+
+				echo "<script>
+					window.location.href='dashboard.php';
+				</script>";
+				exit();
+			}
+		}
+
+		// Login failed
+		logSecurityEvent('user_login_failed', "User: $email", 'warning');
+
+		echo "<script>
+			alert('The login details are incorrect. Please try again!');
+			window.location.href='index.php';
+		</script>";
+		exit();
+		logSecurityEvent('user_login_failed', "User: $email", 'warning');
+
+		echo "<script>
+			alert('The login details are incorrect. Please try again!');
+			window.location.href='index.php';
+		</script>";
+		exit();
+
+	} catch (PDOException $e) {
+		error_log("User login error: " . $e->getMessage());
+		logSecurityEvent('user_login_error', $e->getMessage(), 'error');
+
+		echo "<script>
+			alert('An error occurred. Please try again later.');
+			window.location.href='index.php';
+		</script>";
+		exit();
 	}
 }
-
-//$_SESSION['errmsg']="";
-
 ?>
 
 <!DOCTYPE html>

@@ -1,6 +1,6 @@
 <?php
+require_once('../includes/session_security.php');
 include("includes/config.php");
-session_start();
 
 if (isset($_SESSION['email'])) {
 

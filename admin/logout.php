@@ -1,5 +1,5 @@
 <?php
-session_start();
+require_once('../includes/session_security.php');
 $_SESSION['alogin'] == "";
 session_unset();
 //session_destroy();

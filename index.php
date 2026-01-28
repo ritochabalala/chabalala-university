@@ -1,35 +1,108 @@
 <?php
-session_start();
-error_reporting(0);
-include("includes/config.php");
+// Initialize secure session
+require_once("includes/session_security.php");
+require_once("includes/config.php");
+require_once("includes/security.php");
+
+error_reporting(E_ALL);
+ini_set('display_errors', 0); // Hide errors in production
+ini_set('log_errors', 1);
 
 if (isset($_POST['submit'])) {
-	$studentregno = $_POST['studentregno'];
+	// Check rate limit
+	if (!checkRateLimit('student_login', 5, 900)) {
+		echo "<script>
+			alert('" . getRateLimitMessage(900) . "');
+			window.location.href='index.php';
+		</script>";
+		exit();
+	}
+
+	// Sanitize inputs
+	$studentregno = sanitizeInput($_POST['studentregno']);
 	$password = $_POST['password'];
 
-	$password = md5($_POST['password']);
+	// Validate input
+	if (empty($studentregno) || empty($password)) {
+		echo "<script>
+			alert('Please enter both Student Number and Password');
+			window.location.href='index.php';
+		</script>";
+		exit();
+	}
 
-	$sql = "SELECT * FROM students WHERE studentregno = '$studentregno' AND password = '$password'";
+	try {
+		// Use prepared statement to prevent SQL injection
+		$stmt = $pdo->prepare("SELECT * FROM students WHERE studentregno = :studentregno LIMIT 1");
+		$stmt->execute(['studentregno' => $studentregno]);
+		$student = $stmt->fetch();
 
-	$run = mysqli_query($con, $sql);
-	$check = mysqli_num_rows($run);
+		// Verify password using password_verify (supports both bcrypt and MD5 temporarily)
+		if ($student) {
+			$passwordMatch = false;
 
-	if ($check == 1) {
-		session_start();
-		$_SESSION['login'] = $_POST['studentregno'];
-		$_SESSION['studentregno'] = $studentregno;
-		$uip = $_SERVER['REMOTE_ADDR'];
-		$status = 1;
-		$log = mysqli_query($con, "insert into userlog(studentregno,userip,status) values('" . $_SESSION['login'] . "','$uip','$status')");
+			// Check if it's a bcrypt hash (bcrypt hashes start with $2y$, $2a$, $2b$)
+			if (preg_match('/^\$2[ayb]\$.{56}$/', $student['password'])) {
+				$passwordMatch = password_verify($password, $student['password']);
+			} else {
+				// Fallback to MD5 for existing users (temporary)
+				$passwordMatch = ($student['password'] === md5($password));
 
-		echo "<script> 
-					window.open('my-profile.php','_self');
-				  </script>";
-	} else {
-		echo "<script> 
+				// If MD5 matched, upgrade to bcrypt
+				if ($passwordMatch) {
+					$newHash = password_hash($password, PASSWORD_BCRYPT);
+					$updateStmt = $pdo->prepare("UPDATE students SET password = :password WHERE studentregno = :studentregno");
+					$updateStmt->execute([
+						'password' => $newHash,
+						'studentregno' => $studentregno
+					]);
+				}
+			}
+
+			if ($passwordMatch) {
+				// Regenerate session ID for security
+				regenerateSession();
+
+				$_SESSION['login'] = $student['studentregno'];
+				$_SESSION['studentregno'] = $student['studentregno'];
+
+				// Log successful login
+				$uip = $_SERVER['REMOTE_ADDR'];
+				$status = 1;
+				$logStmt = $pdo->prepare("INSERT INTO userlog (studentregno, userip, status, logintime) VALUES (:studentregno, :userip, :status, NOW())");
+				$logStmt->execute([
+					'studentregno' => $_SESSION['login'],
+					'userip' => $uip,
+					'status' => $status
+				]);
+
+				logSecurityEvent('student_login_success', "Student: $studentregno", 'info');
+
+				echo "<script>
+					window.location.href='my-profile.php';
+				</script>";
+				exit();
+			}
+		}
+
+		// Login failed
+		logSecurityEvent('student_login_failed', "Student: $studentregno", 'warning');
+
+		echo "<script>
 			alert('The Student Number/Password is incorrect. Please try again');
-			window.open('index.php','_self');
-			</script>";
+			window.location.href='index.php';
+		</script>";
+		exit();
+
+	} catch (PDOException $e) {
+		error_log("Login error: " . $e->getMessage());
+		logSecurityEvent('student_login_error', $e->getMessage(), 'error');
+
+		echo "<script>
+			alert('An error occurred. Please try again later.');
+			window.location.href='index.php';
+		</script>";
+		exit();
 	}
 }
 ?>

@@ -1,0 +1,13 @@
+.env
+.env.local
+.env.*.local
+studentphoto/*
+!studentphoto/.gitkeep
+vendor/
+composer.lock
+*.log
+.vscode/
+.idea/
+*.swp
+*.bak
+*~

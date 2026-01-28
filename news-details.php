@@ -1,5 +1,5 @@
 <?php
-session_start();
+require_once('includes/session_security.php');
 error_reporting(0);
 include("includes/config.php");
 if (isset($_POST['submit'])) {

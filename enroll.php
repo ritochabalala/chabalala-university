@@ -1,5 +1,5 @@
 <?php
-session_start();
+require_once('includes/session_security.php');
 include('includes/config.php');
 error_reporting(0);
 if (strlen($_SESSION['login']) == 0 or strlen($_SESSION['pcode']) == 0) {
@@ -62,7 +62,8 @@ if (strlen($_SESSION['login']) == 0 or strlen($_SESSION['pcode']) == 0) {
                                 Course Enroll
                             </div>
                             <font color="green" align="center">
-                                <?php echo htmlentities($_SESSION['msg']); ?>    <?php echo htmlentities($_SESSION['msg'] = ""); ?>
+                                <?php echo htmlentities($_SESSION['msg']); ?>
+                                <?php echo htmlentities($_SESSION['msg'] = ""); ?>
                             </font>
 
                             <?php
@@ -94,8 +95,8 @@ if (strlen($_SESSION['login']) == 0 or strlen($_SESSION['pcode']) == 0) {
 
                                             <?php if ($row['studentPhoto'] == "") { ?>
                                                 <img src="studentphoto/noimage.png" width="200" height="200"><?php } else { ?>
-                                                <img src="studentphoto/<?php echo htmlentities($row['studentPhoto']); ?>" width="200"
-                                                    height="200">
+                                                <img src="studentphoto/<?php echo htmlentities($row['studentPhoto']); ?>"
+                                                    width="200" height="200">
                                             <?php } ?>
                                         </div>
                                     <?php } ?>
@@ -109,7 +110,8 @@ if (strlen($_SESSION['login']) == 0 or strlen($_SESSION['pcode']) == 0) {
                                             while ($row = mysqli_fetch_array($sql)) {
                                                 ?>
                                                 <option value="<?php echo htmlentities($row['id']); ?>">
-                                                    <?php echo htmlentities($row['session']); ?></option>
+                                                    <?php echo htmlentities($row['session']); ?>
+                                                </option>
                                             <?php } ?>
                                         </select>
                                     </div>
@@ -122,7 +124,8 @@ if (strlen($_SESSION['login']) == 0 or strlen($_SESSION['pcode']) == 0) {
                                             while ($row = mysqli_fetch_array($sql)) {
                                                 ?>
                                                 <option value="<?php echo htmlentities($row['id']); ?>">
-                                                    <?php echo htmlentities($row['department']); ?></option>
+                                                    <?php echo htmlentities($row['department']); ?>
+                                                </option>
                                             <?php } ?>
                                         </select>
                                     </div>
@@ -135,7 +138,8 @@ if (strlen($_SESSION['login']) == 0 or strlen($_SESSION['pcode']) == 0) {
                                             while ($row = mysqli_fetch_array($sql)) {
                                                 ?>
                                                 <option value="<?php echo htmlentities($row['id']); ?>">
-                                                    <?php echo htmlentities($row['semester']); ?></option>
+                                                    <?php echo htmlentities($row['semester']); ?>
+                                                </option>
                                             <?php } ?>
                                         </select>
                                     </div>
@@ -148,7 +152,8 @@ if (strlen($_SESSION['login']) == 0 or strlen($_SESSION['pcode']) == 0) {
                                             while ($row = mysqli_fetch_array($sql)) {
                                                 ?>
                                                 <option value="<?php echo htmlentities($row['id']); ?>">
-                                                    <?php echo htmlentities($row['level']); ?></option>
+                                                    <?php echo htmlentities($row['level']); ?>
+                                                </option>
                                             <?php } ?>
                                         </select>
                                     </div>
@@ -163,7 +168,8 @@ if (strlen($_SESSION['login']) == 0 or strlen($_SESSION['pcode']) == 0) {
                                             while ($row = mysqli_fetch_array($sql)) {
                                                 ?>
                                                 <option value="<?php echo htmlentities($row['id']); ?>">
-                                                    <?php echo htmlentities($row['courseName']); ?></option>
+                                                    <?php echo htmlentities($row['courseName']); ?>
+                                                </option>
                                             <?php } ?>
                                         </select>
                                         <span id="course-availability-status1" style="font-size:12px;">

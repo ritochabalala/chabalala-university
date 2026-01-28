@@ -1,5 +1,5 @@
 <?php
-session_start();
+require_once('includes/session_security.php');
 include('includes/config.php');
 error_reporting(0);
 if (strlen($_SESSION['login']) == 0) {
@@ -53,7 +53,8 @@ if (strlen($_SESSION['login']) == 0) {
                                 Pincode Verification
                             </div>
                             <font color="red" align="center">
-                                <?php echo htmlentities($_SESSION['msg']); ?>    <?php echo htmlentities($_SESSION['msg'] = ""); ?>
+                                <?php echo htmlentities($_SESSION['msg']); ?>
+                                <?php echo htmlentities($_SESSION['msg'] = ""); ?>
                             </font>
 
                             <div class="panel-body">
